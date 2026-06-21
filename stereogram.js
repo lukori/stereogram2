@@ -79,15 +79,16 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
     }
   }
 
-  // --- Aperiodic pattern lookup ---------------------------------------------
-  // s0 = background separation. We build one strip (s0 wide, height tall) of
-  // random-dot texture using the pattern's color palette, then tile it in X
-  // only (repeat-x). This strip has no internal horizontal periodicity, so
-  // the only autocorrelation peak in the output is the stereo signal at s0.
+  // --- Pattern lookup canvas ------------------------------------------------
+  // For aperiodic (generated): full-size dot canvas — no tiling, no seed period.
+  //   Dots 2–4 px radius give the visual system coherent blobs to lock onto,
+  //   unlike 1-px salt-and-pepper noise from per-pixel random colors.
+  // For uploaded: band-locked tile at s0 (unchanged).
   const s0        = Math.max(2, separation(0, mu, eyeSep));
-  const palette   = aperiodic ? samplePalette(patternCanvas, 500) : null;
-  const patLookup = aperiodic ? null : buildPatternLookup(patternCanvas, width, height, s0, reps, false);
-  const pat       = patLookup ? patLookup.data : null;
+  const patLookup = aperiodic
+    ? buildAperiodicDotTexture(patternCanvas, width, height)
+    : buildPatternLookup(patternCanvas, width, height, s0, reps, false);
+  const pat = patLookup.data;
 
   // --- Stereogram output ----------------------------------------------------
   outCanvas.width  = width;
@@ -131,17 +132,10 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
     for (let x = width - 1; x >= 0; x--) {
       const oi = (row + x) << 2;
       if (same[x] === x) {
-        if (aperiodic) {
-          const col   = palette[Math.floor(Math.random() * palette.length)];
-          out[oi]     = col[0];
-          out[oi + 1] = col[1];
-          out[oi + 2] = col[2];
-        } else {
-          const pi = (row + x) << 2;
-          out[oi]     = pat[pi];
-          out[oi + 1] = pat[pi + 1];
-          out[oi + 2] = pat[pi + 2];
-        }
+        const pi = (row + x) << 2;
+        out[oi]     = pat[pi];
+        out[oi + 1] = pat[pi + 1];
+        out[oi + 2] = pat[pi + 2];
       } else {
         const si = (row + same[x]) << 2;
         out[oi]     = out[si];
@@ -297,6 +291,37 @@ function gaussianBlurDepth(data, w, h, sigma) {
     }
   }
   return out;
+}
+
+/**
+ * Build a full-size (w × h) aperiodic dot texture from the pattern's palette.
+ * Dots are 2–4 px radius — large enough for the visual system to lock onto,
+ * small enough not to create internal structure.  No tiling, so no seed period.
+ */
+function buildAperiodicDotTexture(patternCanvas, w, h) {
+  const palette = samplePalette(patternCanvas, 500);
+  const c   = document.createElement('canvas');
+  c.width   = w;
+  c.height  = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+
+  const bg = palette.reduce((a, b) => (a[0] + a[1] + a[2]) < (b[0] + b[1] + b[2]) ? a : b);
+  ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
+  ctx.fillRect(0, 0, w, h);
+
+  const minR = 2, maxR = 4;
+  const avgR = (minR + maxR) / 2;
+  const count = Math.round((w * h) / (Math.PI * avgR * avgR * 2.5));
+
+  for (let i = 0; i < count; i++) {
+    const col = palette[Math.floor(Math.random() * palette.length)];
+    ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * w, Math.random() * h, minR + Math.random() * (maxR - minR), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return ctx.getImageData(0, 0, w, h);
 }
 
 /**
