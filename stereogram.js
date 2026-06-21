@@ -84,9 +84,10 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
   // random-dot texture using the pattern's color palette, then tile it in X
   // only (repeat-x). This strip has no internal horizontal periodicity, so
   // the only autocorrelation peak in the output is the stereo signal at s0.
-  const s0 = Math.max(2, separation(0, mu, eyeSep));
-  const patLookup = buildPatternLookup(patternCanvas, width, height, s0, reps, aperiodic);
-  const pat = patLookup.data;
+  const s0        = Math.max(2, separation(0, mu, eyeSep));
+  const palette   = aperiodic ? samplePalette(patternCanvas, 500) : null;
+  const patLookup = aperiodic ? null : buildPatternLookup(patternCanvas, width, height, s0, reps, false);
+  const pat       = patLookup ? patLookup.data : null;
 
   // --- Stereogram output ----------------------------------------------------
   outCanvas.width  = width;
@@ -130,10 +131,17 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
     for (let x = width - 1; x >= 0; x--) {
       const oi = (row + x) << 2;
       if (same[x] === x) {
-        const pi = (row + x) << 2;
-        out[oi]     = pat[pi];
-        out[oi + 1] = pat[pi + 1];
-        out[oi + 2] = pat[pi + 2];
+        if (aperiodic) {
+          const col   = palette[Math.floor(Math.random() * palette.length)];
+          out[oi]     = col[0];
+          out[oi + 1] = col[1];
+          out[oi + 2] = col[2];
+        } else {
+          const pi = (row + x) << 2;
+          out[oi]     = pat[pi];
+          out[oi + 1] = pat[pi + 1];
+          out[oi + 2] = pat[pi + 2];
+        }
       } else {
         const si = (row + same[x]) << 2;
         out[oi]     = out[si];
