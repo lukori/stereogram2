@@ -45,6 +45,7 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
   const popIn  = !!opts.popIn;
   const blurSigma  = opts.depthBlur  != null ? Number(opts.depthBlur)  : 2.5;
   const borderPx   = opts.borderPx   != null ? Math.round(opts.borderPx) : 0;
+  const dotScale   = opts.dotScale   != null ? Math.max(0.25, Number(opts.dotScale)) : 1;
 
   // --- Depth map -> normalized Z [0,1] per pixel ----------------------------
   const depthData = sampleToImageData(depthCanvas, width, height);
@@ -86,7 +87,7 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
   // For uploaded: band-locked tile at s0 (unchanged).
   const s0        = Math.max(2, separation(0, mu, eyeSep));
   const patLookup = aperiodic
-    ? buildAperiodicDotTexture(patternCanvas, width, height)
+    ? buildAperiodicDotTexture(patternCanvas, width, height, dotScale)
     : buildPatternLookup(patternCanvas, width, height, s0, reps, false);
   const pat = patLookup.data;
 
@@ -298,7 +299,7 @@ function gaussianBlurDepth(data, w, h, sigma) {
  * Dots are 2–4 px radius — large enough for the visual system to lock onto,
  * small enough not to create internal structure.  No tiling, so no seed period.
  */
-function buildAperiodicDotTexture(patternCanvas, w, h) {
+function buildAperiodicDotTexture(patternCanvas, w, h, dotScale = 1) {
   const palette = samplePalette(patternCanvas, 500);
   const c   = document.createElement('canvas');
   c.width   = w;
@@ -309,7 +310,7 @@ function buildAperiodicDotTexture(patternCanvas, w, h) {
   ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
   ctx.fillRect(0, 0, w, h);
 
-  const minR = 1, maxR = 2.5;
+  const minR = 1 * dotScale, maxR = 2.5 * dotScale;
   const avgR = (minR + maxR) / 2;
   const count = Math.round((w * h) / (Math.PI * avgR * avgR * 2.5));
 

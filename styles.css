@@ -154,6 +154,28 @@ input[type="number"] {
   color: var(--muted);
 }
 
+.size-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.size-btn {
+  flex: 1 1 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--accent-2);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.80rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.size-btn:hover {
+  background: rgba(91, 140, 255, 0.10);
+  border-color: var(--accent);
+}
+
 .gen-btn {
   width: 100%;
   margin-top: 8px;
