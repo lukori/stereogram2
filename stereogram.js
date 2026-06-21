@@ -79,74 +79,46 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
     }
   }
 
-  // --- Aperiodic pattern lookup ---------------------------------------------
-  // s0 = background separation. We build one strip (s0 wide, height tall) of
-  // random-dot texture using the pattern's color palette, then tile it in X
-  // only (repeat-x). This strip has no internal horizontal periodicity, so
-  // the only autocorrelation peak in the output is the stereo signal at s0.
-  const s0        = Math.max(2, separation(0, mu, eyeSep));
-  const palette   = aperiodic ? samplePalette(patternCanvas, 500) : null;
+  // --- Pattern seed ----------------------------------------------------------
+  const s0      = Math.max(2, separation(0, mu, eyeSep));
+  const palette = aperiodic ? samplePalette(patternCanvas, 500) : null;
   const patLookup = aperiodic ? null : buildPatternLookup(patternCanvas, width, height, s0, reps, false);
   const pat       = patLookup ? patLookup.data : null;
 
-  // --- Stereogram output ----------------------------------------------------
+  // --- Stereogram output (Tyler & Clarke L→R direct) -----------------------
+  // For each pixel x: out[x] = out[x - sep(depth[x])].
+  // When x - sep < 0 there is no left partner yet → seed from palette/texture.
+  // Single left-to-right pass, no same[] array, unambiguous per-pixel chain.
   outCanvas.width  = width;
   outCanvas.height = height;
   const octx   = outCanvas.getContext('2d');
   const outImg = octx.createImageData(width, height);
   const out    = outImg.data;
 
-  const same = new Int32Array(width);
-
   for (let y = 0; y < height; y++) {
     const row = y * width;
-
-    for (let x = 0; x < width; x++) same[x] = x;
 
     for (let x = 0; x < width; x++) {
       const z   = depth[row + x];
       const sep = separation(z, mu, eyeSep);
+      const src = x - sep;
+      const oi  = (row + x) << 2;
 
-      const left  = x - (sep >> 1);
-      const right = left + sep;
-
-      if (left >= 0 && right < width) {
-        let visible = true;
-        let t = 1;
-        do {
-          const zt = z + (2 * (2 - mu * z) * t) / (mu * eyeSep);
-          const xl = x - t, xr = x + t;
-          visible = (xl < 0 || depth[row + xl] < zt) &&
-                    (xr >= width || depth[row + xr] < zt);
-          t++;
-          if (zt >= 1) break;
-        } while (visible);
-
-        if (visible) same[left] = right;
-      }
-    }
-
-    // Resolve right -> left: constrained pixels copy from their linked partner;
-    // unconstrained pixels seed from the aperiodic lookup.
-    for (let x = width - 1; x >= 0; x--) {
-      const oi = (row + x) << 2;
-      if (same[x] === x) {
-        if (aperiodic) {
-          const col   = palette[Math.floor(Math.random() * palette.length)];
-          out[oi]     = col[0];
-          out[oi + 1] = col[1];
-          out[oi + 2] = col[2];
-        } else {
-          const pi = (row + x) << 2;
-          out[oi]     = pat[pi];
-          out[oi + 1] = pat[pi + 1];
-          out[oi + 2] = pat[pi + 2];
-        }
-      } else {
-        const si = (row + same[x]) << 2;
+      if (src >= 0) {
+        const si  = (row + src) << 2;
         out[oi]     = out[si];
         out[oi + 1] = out[si + 1];
         out[oi + 2] = out[si + 2];
+      } else if (aperiodic) {
+        const col   = palette[Math.floor(Math.random() * palette.length)];
+        out[oi]     = col[0];
+        out[oi + 1] = col[1];
+        out[oi + 2] = col[2];
+      } else {
+        const pi  = (row + x) << 2;
+        out[oi]     = pat[pi];
+        out[oi + 1] = pat[pi + 1];
+        out[oi + 2] = pat[pi + 2];
       }
       out[oi + 3] = 255;
     }
