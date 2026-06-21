@@ -43,10 +43,12 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
   const aperiodic = !!opts.aperiodicTexture;
   const invert = !!opts.invert;
   const popIn  = !!opts.popIn;
+  const blurSigma  = opts.depthBlur  != null ? Number(opts.depthBlur)  : 2.5;
+  const borderPx   = opts.borderPx   != null ? Math.round(opts.borderPx) : 0;
 
   // --- Depth map -> normalized Z [0,1] per pixel ----------------------------
   const depthData = sampleToImageData(depthCanvas, width, height);
-  const depth = new Float32Array(width * height);
+  let depth = new Float32Array(width * height);
   {
     const d = depthData.data;
     for (let i = 0, p = 0; i < depth.length; i++, p += 4) {
@@ -54,6 +56,26 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
       if (invert) z = 1 - z;
       if (popIn)  z = 1 - z;
       depth[i] = z;
+    }
+  }
+
+  // Gaussian blur on depth: smooths abrupt period-change boundaries that cause
+  // the eye to lock onto a false stereo phase before the correct one.
+  if (blurSigma > 0) {
+    depth = gaussianBlurDepth(depth, width, height, blurSigma);
+  }
+
+  // Background border: force outer ring to Z=0 (background) so the eye always
+  // has a large flat anchor region to fuse on before moving to the subject.
+  if (borderPx > 0) {
+    const bx = Math.min(borderPx, Math.floor(width  / 2));
+    const by = Math.min(borderPx, Math.floor(height / 2));
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (x < bx || x >= width - bx || y < by || y >= height - by) {
+          depth[y * width + x] = 0;
+        }
+      }
     }
   }
 
@@ -224,6 +246,49 @@ function aperiodicStrip(palette, w, h, reps) {
     ctx.fill();
   }
   return c;
+}
+
+/**
+ * Separable Gaussian blur on a Float32Array depth field (values 0..1).
+ * Smooths abrupt period-change edges to reduce false stereo-phase locking.
+ */
+function gaussianBlurDepth(data, w, h, sigma) {
+  const radius = Math.ceil(sigma * 2.5);
+  const kernel = [];
+  let ksum = 0;
+  for (let i = -radius; i <= radius; i++) {
+    const v = Math.exp(-(i * i) / (2 * sigma * sigma));
+    kernel.push(v);
+    ksum += v;
+  }
+  for (let i = 0; i < kernel.length; i++) kernel[i] /= ksum;
+
+  // Horizontal pass → tmp
+  const tmp = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let acc = 0;
+      for (let k = -radius; k <= radius; k++) {
+        const xi = Math.min(w - 1, Math.max(0, x + k));
+        acc += data[y * w + xi] * kernel[k + radius];
+      }
+      tmp[y * w + x] = acc;
+    }
+  }
+
+  // Vertical pass → out
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let acc = 0;
+      for (let k = -radius; k <= radius; k++) {
+        const yi = Math.min(h - 1, Math.max(0, y + k));
+        acc += tmp[yi * w + x] * kernel[k + radius];
+      }
+      out[y * w + x] = acc;
+    }
+  }
+  return out;
 }
 
 /**

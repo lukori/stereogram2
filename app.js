@@ -14,6 +14,10 @@ const els = {
   depthThumb:      $('depthThumb'),
   patternScale:    $('patternScale'),
   patternScaleVal: $('patternScaleVal'),
+  depthBlur:       $('depthBlur'),
+  depthBlurVal:    $('depthBlurVal'),
+  borderPx:        $('borderPx'),
+  borderPxVal:     $('borderPxVal'),
   outWidth:        $('outWidth'),
   outHeight:       $('outHeight'),
   invert:          $('invert'),
@@ -28,6 +32,8 @@ const sources = { pattern: null, depth: null, patternIsGenerated: false };
 
 const DEFAULTS = {
   patternScale: 1,
+  depthBlur: 2.5,
+  borderPx: 0,
   outWidth: 900,
   outHeight: 600,
   invert: false,
@@ -85,12 +91,14 @@ function regenerate() {
   if (!sources.pattern || !sources.depth) return;
 
   const opts = {
-    width:          clampNum(els.outWidth.value, 100, 2400, 900),
-    height:         clampNum(els.outHeight.value, 100, 2400, 600),
+    width:           clampNum(els.outWidth.value, 100, 2400, 900),
+    height:          clampNum(els.outHeight.value, 100, 2400, 600),
     patternRepeats:  Number(els.patternScale.value),
     aperiodicTexture: sources.patternIsGenerated,
     invert:          els.invert.checked,
-    popIn:          els.popIn.checked,
+    popIn:           els.popIn.checked,
+    depthBlur:       Number(els.depthBlur.value),
+    borderPx:        Number(els.borderPx.value),
   };
 
   const t0 = performance.now();
@@ -206,10 +214,14 @@ function wireDropzone(kind, dropEl, inputEl) {
 
 function syncLabels() {
   els.patternScaleVal.textContent = `${Number(els.patternScale.value)}×`;
+  els.depthBlurVal.textContent    = Number(els.depthBlur.value) === 0 ? 'off' : String(els.depthBlur.value);
+  els.borderPxVal.textContent     = Number(els.borderPx.value) === 0 ? 'off' : `${els.borderPx.value} px`;
 }
 
 function wireControls() {
   els.patternScale.addEventListener('input', () => { syncLabels(); regenerateDebounced(); });
+  els.depthBlur.addEventListener('input',    () => { syncLabels(); regenerateDebounced(); });
+  els.borderPx.addEventListener('input',     () => { syncLabels(); regenerateDebounced(); });
   [els.outWidth, els.outHeight].forEach((el) => el.addEventListener('input', regenerateDebounced));
   [els.invert, els.popIn].forEach((el) => el.addEventListener('change', regenerate));
 }
@@ -226,6 +238,8 @@ els.downloadBtn.addEventListener('click', () => {
 
 els.resetBtn.addEventListener('click', () => {
   els.patternScale.value = DEFAULTS.patternScale;
+  els.depthBlur.value    = DEFAULTS.depthBlur;
+  els.borderPx.value     = DEFAULTS.borderPx;
   els.outWidth.value     = DEFAULTS.outWidth;
   els.outHeight.value    = DEFAULTS.outHeight;
   els.invert.checked     = DEFAULTS.invert;
