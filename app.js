@@ -266,8 +266,14 @@ els.genPatternBtn.addEventListener('click', generatePattern);
 
 document.querySelectorAll('.size-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    els.outWidth.value  = btn.dataset.w;
-    els.outHeight.value = btn.dataset.h;
+    const w = Number(btn.dataset.w);
+    els.outWidth.value = w;
+    if (sources.depth) {
+      const aspect = sources.depth.height / sources.depth.width;
+      els.outHeight.value = clampNum(Math.round(w * aspect), 100, 5000, 600);
+    } else {
+      els.outHeight.value = btn.dataset.h;
+    }
     regenerate();
   });
 });
