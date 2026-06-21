@@ -14,6 +14,8 @@ const els = {
   depthThumb:      $('depthThumb'),
   patternScale:    $('patternScale'),
   patternScaleVal: $('patternScaleVal'),
+  depthMu:         $('depthMu'),
+  depthMuVal:      $('depthMuVal'),
   depthBlur:       $('depthBlur'),
   depthBlurVal:    $('depthBlurVal'),
   borderPx:        $('borderPx'),
@@ -32,6 +34,7 @@ const sources = { pattern: null, depth: null, patternIsGenerated: false };
 
 const DEFAULTS = {
   patternScale: 1,
+  depthMu: 0.20,
   depthBlur: 2.5,
   borderPx: 0,
   outWidth: 900,
@@ -97,6 +100,7 @@ function regenerate() {
     aperiodicTexture: sources.patternIsGenerated,
     invert:          els.invert.checked,
     popIn:           els.popIn.checked,
+    mu:              Number(els.depthMu.value),
     depthBlur:       Number(els.depthBlur.value),
     borderPx:        Number(els.borderPx.value),
   };
@@ -214,12 +218,14 @@ function wireDropzone(kind, dropEl, inputEl) {
 
 function syncLabels() {
   els.patternScaleVal.textContent = `${Number(els.patternScale.value)}×`;
+  els.depthMuVal.textContent      = els.depthMu.value;
   els.depthBlurVal.textContent    = Number(els.depthBlur.value) === 0 ? 'off' : String(els.depthBlur.value);
   els.borderPxVal.textContent     = Number(els.borderPx.value) === 0 ? 'off' : `${els.borderPx.value} px`;
 }
 
 function wireControls() {
   els.patternScale.addEventListener('input', () => { syncLabels(); regenerateDebounced(); });
+  els.depthMu.addEventListener('input',      () => { syncLabels(); regenerateDebounced(); });
   els.depthBlur.addEventListener('input',    () => { syncLabels(); regenerateDebounced(); });
   els.borderPx.addEventListener('input',     () => { syncLabels(); regenerateDebounced(); });
   [els.outWidth, els.outHeight].forEach((el) => el.addEventListener('input', regenerateDebounced));
@@ -238,6 +244,7 @@ els.downloadBtn.addEventListener('click', () => {
 
 els.resetBtn.addEventListener('click', () => {
   els.patternScale.value = DEFAULTS.patternScale;
+  els.depthMu.value      = DEFAULTS.depthMu;
   els.depthBlur.value    = DEFAULTS.depthBlur;
   els.borderPx.value     = DEFAULTS.borderPx;
   els.outWidth.value     = DEFAULTS.outWidth;

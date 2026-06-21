@@ -41,8 +41,12 @@
           <label for="patternScale">Pattern repeats <span class="val" id="patternScaleVal">1×</span></label>
           <input type="range" id="patternScale" min="1" max="6" step="1" value="1" />
         </div>
-        <p class="rule-note">Eye separation &amp; depth are set automatically to match
-          classic Magic-Eye proportions (≈13% of width, derived from references).</p>
+        <p class="rule-note">Eye separation is set automatically (≈13% of width). Depth strength (μ) controls how much 3D relief — lower = flatter but easier to fuse first time.</p>
+
+        <div class="ctrl">
+          <label for="depthMu">Depth strength μ <span class="val" id="depthMuVal">0.20</span></label>
+          <input type="range" id="depthMu" min="0.05" max="0.45" step="0.05" value="0.20" />
+        </div>
 
         <div class="ctrl">
           <label for="depthBlur">Depth edge softness <span class="val" id="depthBlurVal">2.5</span></label>

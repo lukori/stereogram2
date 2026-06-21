@@ -37,7 +37,7 @@ export const DEPTH_MU = 0.36;
 export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts = {}) {
   const width  = Math.max(1, Math.round(opts.width  || 800));
   const height = Math.max(1, Math.round(opts.height || 600));
-  const mu     = DEPTH_MU;
+  const mu     = opts.mu != null ? Math.max(0.05, Math.min(0.6, Number(opts.mu))) : DEPTH_MU;
   const eyeSep = Math.max(4, Math.round(2 * SEP_FRACTION * width));
   const reps      = Math.max(1, Math.round(opts.patternRepeats || 1));
   const aperiodic = !!opts.aperiodicTexture;
@@ -309,7 +309,7 @@ function buildAperiodicDotTexture(patternCanvas, w, h) {
   ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
   ctx.fillRect(0, 0, w, h);
 
-  const minR = 2, maxR = 4;
+  const minR = 1, maxR = 2.5;
   const avgR = (minR + maxR) / 2;
   const count = Math.round((w * h) / (Math.PI * avgR * avgR * 2.5));
 
