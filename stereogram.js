@@ -88,7 +88,7 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
   const s0        = Math.max(2, separation(0, mu, eyeSep));
   const patLookup = aperiodic
     ? buildAperiodicDotTexture(patternCanvas, width, height, dotScale)
-    : buildPatternLookup(patternCanvas, width, height, s0, reps, false);
+    : buildPatternLookup(patternCanvas, width, height, s0, reps, dotScale);
   const pat = patLookup.data;
 
   // --- Stereogram output ----------------------------------------------------
@@ -177,39 +177,29 @@ function sampleToImageData(src, w, h) {
  *                  s0 so the ONLY horizontal period is the stereo separation (no ghosting).
  *                  `reps` = how many copies of the pattern fit within one band.
  */
-function buildPatternLookup(patternCanvas, w, h, period, reps, aperiodic) {
+function buildPatternLookup(patternCanvas, w, h, period, reps, dotScale = 1) {
   const c   = document.createElement('canvas');
   c.width   = w;
   c.height  = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   const s0  = Math.max(1, Math.round(period));
 
-  if (aperiodic) {
-    // --- Generated pattern: aperiodic random-dot strip tiled in X only -------
-    const palette = samplePalette(patternCanvas, 500);
-    const strip   = aperiodicStrip(palette, s0, h, reps);
-    ctx.fillStyle = ctx.createPattern(strip, 'repeat-x');
-    ctx.fillRect(0, 0, w, h);
+  // --- Uploaded pattern: tile the real texture, band-locked to s0 ----------
+  // dotScale multiplies the tile width — 2× = twice as large, 0.5× = half.
+  const copyW = Math.max(1, (s0 / reps) * dotScale);
+  const copyH = Math.max(1, Math.round((patternCanvas.height * copyW) / patternCanvas.width));
 
-  } else {
-    // --- Uploaded pattern: tile the real texture, band-locked to s0 ----------
-    // The tile is exactly s0 wide so the pattern's own horizontal period equals
-    // the stereo separation — no competing peaks, no ghosting.
-    const copyW = s0 / reps;
-    const copyH = Math.max(1, Math.round((patternCanvas.height * copyW) / patternCanvas.width));
-
-    const tile  = document.createElement('canvas');
-    tile.width  = s0;
-    tile.height = copyH;
-    const tctx  = tile.getContext('2d');
-    tctx.imageSmoothingEnabled = true;
-    for (let i = 0; i < reps; i++) {
-      tctx.drawImage(patternCanvas, i * copyW, 0, copyW, copyH);
-    }
-
-    ctx.fillStyle = ctx.createPattern(tile, 'repeat');
-    ctx.fillRect(0, 0, w, h);
+  const tile  = document.createElement('canvas');
+  tile.width  = s0;
+  tile.height = copyH;
+  const tctx  = tile.getContext('2d');
+  tctx.imageSmoothingEnabled = true;
+  for (let i = 0; i < reps; i++) {
+    tctx.drawImage(patternCanvas, i * copyW, 0, copyW, copyH);
   }
+
+  ctx.fillStyle = ctx.createPattern(tile, 'repeat');
+  ctx.fillRect(0, 0, w, h);
 
   return ctx.getImageData(0, 0, w, h);
 }
