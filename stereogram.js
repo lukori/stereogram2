@@ -272,13 +272,15 @@ function gaussianBlurDepth(data, w, h, sigma) {
  * dotScale=4 → 8px cells (matches reference colored-block style)
  */
 function buildAperiodicDotTexture(patternCanvas, w, h, dotScale = 1) {
-  const palette = samplePalette(patternCanvas, 500);
+  // 16 colours: small enough that adjacent cells sometimes share a colour
+  // (creating visible coherent patches) yet large enough for a clean stereo SNR.
+  const palette = samplePalette(patternCanvas, 16);
   const c   = document.createElement('canvas');
   c.width   = w;
   c.height  = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
 
-  const cell = Math.max(1, Math.round(dotScale * 2));
+  const cell = Math.max(1, Math.round(dotScale * 5));
   for (let y = 0; y < h; y += cell) {
     for (let x = 0; x < w; x += cell) {
       const col = palette[Math.floor(Math.random() * palette.length)];
