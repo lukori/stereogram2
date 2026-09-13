@@ -109,22 +109,36 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
       const z   = depth[row + x];
       const sep = separation(z, mu, eyeSep);
 
-      const left  = x - (sep >> 1);
-      const right = left + sep;
+      // left/right are the actual screen positions seen by each eye.
+      let left      = x - (sep >> 1);
+      const right   = left + sep;
 
       if (left >= 0 && right < width) {
+        // Visibility check: use left-t and right+t (the actual view-cone edges,
+        // per TIW §3). The original code used x±t which was too close to center
+        // and missed occluders, creating false links at depth edges.
         let visible = true;
         let t = 1;
         do {
           const zt = z + (2 * (2 - mu * z) * t) / (mu * eyeSep);
-          const xl = x - t, xr = x + t;
-          visible = (xl < 0 || depth[row + xl] < zt) &&
-                    (xr >= width || depth[row + xr] < zt);
+          visible = (left  - t < 0     || depth[row + left  - t] < zt) &&
+                    (right + t >= width || depth[row + right + t] < zt);
           t++;
           if (zt >= 1) break;
         } while (visible);
 
-        if (visible) same[left] = right;
+        if (visible) {
+          // TIW union-find: walk the existing chain from left to its current tail,
+          // then extend the tail to right (rather than overwriting same[left]).
+          // Without this, a second constraint on the same left silently orphans
+          // the first right, breaking the stereo correlation there.
+          let l = same[left];
+          while (l !== left && l !== right) {
+            left = l;
+            l    = same[left];
+          }
+          if (l !== right) same[left] = right;
+        }
       }
     }
 
@@ -202,43 +216,6 @@ function buildPatternLookup(patternCanvas, w, h, period, reps, dotScale = 1) {
   ctx.fillRect(0, 0, w, h);
 
   return ctx.getImageData(0, 0, w, h);
-}
-
-/**
- * Render random colored dots at uniformly random positions onto a (w × h) canvas.
- * No grid, no internal period — only the color palette comes from the source pattern.
- */
-function aperiodicStrip(palette, w, h, reps) {
-  const c   = document.createElement('canvas');
-  c.width   = w;
-  c.height  = h;
-  const ctx = c.getContext('2d');
-
-  // Background: darkest color in palette
-  const bg = palette.reduce((a, b) => (a[0]+a[1]+a[2]) < (b[0]+b[1]+b[2]) ? a : b);
-  ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
-  ctx.fillRect(0, 0, w, h);
-
-  // Dot radius: stay close to reference noise grain (1–3 px).
-  // reps=1 → up to 3px; reps=6 → up to 1.5px (floor). Higher reps = finer.
-  const maxR = Math.max(1.5, 3 / reps);
-  const minR = 1;
-  const avgR = (minR + maxR) / 2;
-  const count = Math.round((w * h) / (Math.PI * avgR * avgR * 1.6));
-
-  for (let i = 0; i < count; i++) {
-    const col = palette[Math.floor(Math.random() * palette.length)];
-    ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
-    ctx.beginPath();
-    ctx.arc(
-      Math.random() * w,
-      Math.random() * h,
-      minR + Math.random() * (maxR - minR),
-      0, Math.PI * 2
-    );
-    ctx.fill();
-  }
-  return c;
 }
 
 /**
