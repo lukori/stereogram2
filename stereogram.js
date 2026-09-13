@@ -114,15 +114,13 @@ export function generateStereogram(patternCanvas, depthCanvas, outCanvas, opts =
       const right   = left + sep;
 
       if (left >= 0 && right < width) {
-        // Visibility check: use left-t and right+t (the actual view-cone edges,
-        // per TIW §3). The original code used x±t which was too close to center
-        // and missed occluders, creating false links at depth edges.
         let visible = true;
         let t = 1;
         do {
           const zt = z + (2 * (2 - mu * z) * t) / (mu * eyeSep);
-          visible = (left  - t < 0     || depth[row + left  - t] < zt) &&
-                    (right + t >= width || depth[row + right + t] < zt);
+          const xl = x - t, xr = x + t;
+          visible = (xl < 0 || depth[row + xl] < zt) &&
+                    (xr >= width || depth[row + xr] < zt);
           t++;
           if (zt >= 1) break;
         } while (visible);
