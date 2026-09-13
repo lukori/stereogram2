@@ -260,9 +260,16 @@ function gaussianBlurDepth(data, w, h, sigma) {
 }
 
 /**
- * Build a full-size (w × h) aperiodic dot texture from the pattern's palette.
- * Dots are 2–4 px radius — large enough for the visual system to lock onto,
- * small enough not to create internal structure.  No tiling, so no seed period.
+ * Build a full-size (w × h) aperiodic pixel-square texture from the pattern's palette.
+ *
+ * Each cell is a hard-edged square of `cell × cell` pixels, independently colored.
+ * Hard edges mean zero spatial autocorrelation between adjacent cells — the only
+ * correlation peak in the stereogram output is the one the stereo algorithm injects
+ * at lag s0. Antialiased circles (the previous approach) introduced smooth edges that
+ * raised the autocorrelation floor at all lags, giving competing ghost phases.
+ *
+ * dotScale=1 → 2px cells (matches reference SIRDS grain)
+ * dotScale=4 → 8px cells (matches reference colored-block style)
  */
 function buildAperiodicDotTexture(patternCanvas, w, h, dotScale = 1) {
   const palette = samplePalette(patternCanvas, 500);
@@ -271,20 +278,13 @@ function buildAperiodicDotTexture(patternCanvas, w, h, dotScale = 1) {
   c.height  = h;
   const ctx = c.getContext('2d', { willReadFrequently: true });
 
-  const bg = palette.reduce((a, b) => (a[0] + a[1] + a[2]) < (b[0] + b[1] + b[2]) ? a : b);
-  ctx.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`;
-  ctx.fillRect(0, 0, w, h);
-
-  const minR = 1 * dotScale, maxR = 2.5 * dotScale;
-  const avgR = (minR + maxR) / 2;
-  const count = Math.round((w * h) / (Math.PI * avgR * avgR * 2.5));
-
-  for (let i = 0; i < count; i++) {
-    const col = palette[Math.floor(Math.random() * palette.length)];
-    ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
-    ctx.beginPath();
-    ctx.arc(Math.random() * w, Math.random() * h, minR + Math.random() * (maxR - minR), 0, Math.PI * 2);
-    ctx.fill();
+  const cell = Math.max(1, Math.round(dotScale * 2));
+  for (let y = 0; y < h; y += cell) {
+    for (let x = 0; x < w; x += cell) {
+      const col = palette[Math.floor(Math.random() * palette.length)];
+      ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+      ctx.fillRect(x, y, cell, cell);
+    }
   }
 
   return ctx.getImageData(0, 0, w, h);
